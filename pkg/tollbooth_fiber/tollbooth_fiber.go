@@ -13,8 +13,7 @@ func LimitHandler(handler func(*fiber.Ctx) error, limiter *tlimiter.Limiter) fun
 
 		if httpError != nil {
 			c.Set("Content-Type", limiter.GetMessageContentType())
-			c.Status(httpError.StatusCode).JSON(httpError)
-			return nil
+			return c.Status(httpError.StatusCode).JSON(httpError)
 		}
 		return handler(c)
 	}
@@ -26,8 +25,7 @@ func LimitMiddleware(limiter *tlimiter.Limiter) func(*fiber.Ctx) error {
 		httpError := tollbooth_fasthttp.LimitByRequest(limiter, ctx)
 		if httpError != nil {
 			c.Set("Content-Type", limiter.GetMessageContentType())
-			c.Status(httpError.StatusCode).JSON(httpError)
-			return nil
+			return c.Status(httpError.StatusCode).JSON(httpError)
 		}
 		return c.Next()
 	}
