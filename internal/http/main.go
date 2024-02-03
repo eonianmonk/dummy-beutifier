@@ -13,6 +13,7 @@ func StartFiber(cfg config.Config) error {
 	app := fiber.New()
 
 	limiter := tollbooth.NewLimiter(float64(cfg.RateLimit), nil)
+	limiter.SetStatusCode(fiber.StatusTooManyRequests)
 	app.Use(
 		middleware.SetLogger(cfg.Logger),
 		middleware.SetRand(cfg.Random),
