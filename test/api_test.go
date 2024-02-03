@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/eonianmonk/dummy-beutifier/internal/config"
 	backend "github.com/eonianmonk/dummy-beutifier/internal/http"
+	"github.com/gofiber/fiber/v2"
 )
 
 func client() http.Client {
@@ -27,9 +29,15 @@ var (
 	jsonAPIEndpoint = fmt.Sprintf("http://%s/beautify/jsonapi", address)
 )
 
+var serverActive = false
+
 func startServer(t *testing.T) {
+	if serverActive {
+		return
+	}
+	serverActive = true
 	logger := log.Default()
-	logger.SetOutput(nil)
+	logger.SetOutput(os.Stderr)
 	cfg := config.Config{
 		RateLimit: 10,
 		Logger:    logger,
@@ -46,8 +54,11 @@ func TestAPI(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	t.Run("basic-valid-requests", func(t *testing.T) {
+		go startServer(t)
+		time.Sleep(time.Second * 1)
+
 		validJSON := `{"username":"konishe","id":23152,"links":["2.com","1.com","bb.com"]}`
-		validJSONAPI := `{"links":{"self":"http://example.com/v1/api/resource/123"},"data":{"id":"123","type":"your_resources"},"included":[{"id":"456","type":"related_resources"}]}`
+		validJSONAPI := `{"data":{"type":"post","id":"123","attributes":{" created_at":-61758633600,"author":"Alan Donovan","body":"golang.org/x/tools/cmd/deadcode@latest","title":"Finding unreachable functions with deadcode"},"relationships":{"comments":{"data":[{"type":"comment","id":"0"},{"type":"comment","id":"1"}]}}},"included":[{"type":"comment","id":"0","attributes":{" created_at":-61758633600,"author":"a0@mail.com","body":"Wow! useful"}},{"type":"comment","id":"1","attributes":{" created_at":-61758630000,"author":"a1@mail.com","body":"Wow! useful x2"}}]}`
 
 		// default indent is 2 spaces - currently hardcoded
 		//
@@ -61,23 +72,54 @@ func TestAPI(t *testing.T) {
   ]
 }`
 		validJSONAPIResult := `{
-  "links": {
-    "self": "http://example.com/v1/api/resource/123"
-  },
   "data": {
+    "type": "post",
     "id": "123",
-    "type": "your_resources"
+    "attributes": {
+      " created_at": -61758633600,
+      "author": "Alan Donovan",
+      "body": "golang.org/x/tools/cmd/deadcode@latest",
+      "title": "Finding unreachable functions with deadcode"
+    },
+    "relationships": {
+      "comments": {
+        "data": [
+          {
+            "type": "comment",
+            "id": "0"
+          },
+          {
+            "type": "comment",
+            "id": "1"
+          }
+        ]
+      }
+    }
   },
   "included": [
     {
-      "id": "456",
-      "type": "related_resources"
+      "type": "comment",
+      "id": "0",
+      "attributes": {
+        " created_at": -61758633600,
+        "author": "a0@mail.com",
+        "body": "Wow! useful"
+      }
+    },
+    {
+      "type": "comment",
+      "id": "1",
+      "attributes": {
+        " created_at": -61758630000,
+        "author": "a1@mail.com",
+        "body": "Wow! useful x2"
+      }
     }
   ]
 }`
-		helloResultPattern := regexp.MustCompile(`Hello after sleeping for \d+\.\d{3}`)
 
 		cli := client()
+		helloResultPattern := regexp.MustCompile(`Hello after sleeping for \d+\.\d{3}`)
 
 		resp, err := cli.Get(helloEndpoint)
 		if err != nil || resp.StatusCode != http.StatusOK {
@@ -122,5 +164,37 @@ func TestAPI(t *testing.T) {
 			t.Fatal("unexpected result on beautified json")
 		}
 
+	})
+
+	t.Run("invalid-json-requests", func(t *testing.T) {
+		go startServer(t)
+		time.Sleep(time.Second * 1)
+		cli := client()
+
+		reqFn := func(endp string, expectedCode int, req string) {
+			reqBody := strings.NewReader(req)
+			resp, err := cli.Post(endp, "application/json", reqBody)
+			if err != nil {
+				t.Fatalf("failed to post to %s endpoint: %s", jsonEndpoint, err.Error())
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != expectedCode {
+				body, _ := io.ReadAll(resp.Body)
+				t.Fatalf("unexpected endpoint response code on invalid json at %s\nReceived code: %d, wanted: %d\nResponse body: %s",
+					endp, resp.StatusCode, expectedCode, string(body))
+			}
+		}
+
+		invalidJSON := "{"
+		invalidJSONAPI := "{"
+		invalidJSONAPISchema := `{"weird_key":"weird_value"}`
+
+		reqFn(jsonEndpoint, fiber.StatusBadRequest, invalidJSON)
+
+		// invalid json
+		reqFn(jsonAPIEndpoint, fiber.StatusBadRequest, invalidJSONAPI)
+
+		// invalid jsonapi scheme
+		reqFn(jsonAPIEndpoint, fiber.StatusBadRequest, invalidJSONAPISchema)
 	})
 }
