@@ -7,17 +7,18 @@ import (
 	"github.com/eonianmonk/dummy-beutifier/internal/http/middleware"
 	"github.com/eonianmonk/dummy-beutifier/internal/http/responses"
 	"github.com/gofiber/fiber/v2"
+	"gitlab.com/c0b/go-ordered-json"
 )
 
 // function beautifies JSON
 func BeautifyJSON(c *fiber.Ctx) error {
 	log := middleware.GetLogger(c)
 
-	var incomingData interface{}
-	err := json.Unmarshal(c.Body(), incomingData)
+	incomingData := ordered.NewOrderedMap()
+	err := json.Unmarshal(c.Body(), &incomingData)
 	if err != nil { // invalid json
 		msg := "invalid json schema request"
-		log.Printf("%s: %s\n", msg, string(c.Body()))
+		log.Printf("%s\n", msg)
 		return responses.SendErrorResponse(c, msg, fiber.StatusBadRequest)
 	}
 	beautifiedJSON, err := json.MarshalIndent(incomingData, "", "  ")

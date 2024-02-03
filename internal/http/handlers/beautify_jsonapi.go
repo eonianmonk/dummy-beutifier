@@ -8,6 +8,7 @@ import (
 	"github.com/eonianmonk/dummy-beutifier/internal/http/responses"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/jsonapi"
+	"gitlab.com/c0b/go-ordered-json"
 )
 
 // function beautifies JSON
@@ -24,7 +25,7 @@ func BeautifyJSONAPI(c *fiber.Ctx) error {
 		msg := "invalid schema"
 		return responses.SendErrorResponse(c, msg, fiber.StatusBadRequest)
 	}
-	var store interface{}
+	store := ordered.NewOrderedMap()
 	_ = json.Unmarshal(c.Body(), &store)
 	beautifiedJSON, err := json.MarshalIndent(store, "", "  ")
 	if err != nil {
