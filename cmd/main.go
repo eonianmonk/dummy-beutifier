@@ -34,6 +34,7 @@ func Run(args []string) {
 			RateLimit: *rateLimit,
 			Logger:    log,
 			Random:    randSrc,
+			Endpoint:  "localhost:8080",
 		}
 		log.Println("Starting server")
 		http.StartFiber(cfg)

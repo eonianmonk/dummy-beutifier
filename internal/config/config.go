@@ -9,4 +9,5 @@ type Config struct {
 	RateLimit float64
 	Logger    *logstd.Logger
 	Random    *rand.Rand
+	Endpoint  string
 }

@@ -20,7 +20,7 @@ func StartFiber(cfg config.Config) error {
 	)
 	setupRoutes(app)
 
-	return app.Listen("localhost:8080")
+	return app.Listen(cfg.Endpoint)
 }
 
 func setupRoutes(app *fiber.App) {
