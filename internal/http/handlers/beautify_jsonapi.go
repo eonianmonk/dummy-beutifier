@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 func BeautifyJSONAPI(c *fiber.Ctx) error {
 	log := middleware.GetLogger(c)
 
-	reqReader := c.Request().BodyStream()
+	reqReader := bytes.NewReader(c.Body())
 	// we don't know the incoming request schema
 	// and UnmarshalPayload does not read to interface{}
 	empty := struct{}{}
