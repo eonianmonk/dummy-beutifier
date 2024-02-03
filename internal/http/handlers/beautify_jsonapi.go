@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/eonianmonk/dummy-beutifier/internal/http/middleware"
+	"github.com/eonianmonk/dummy-beutifier/internal/http/requests"
 	"github.com/eonianmonk/dummy-beutifier/internal/http/responses"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/jsonapi"
@@ -19,7 +20,7 @@ func BeautifyJSONAPI(c *fiber.Ctx) error {
 	reqReader := bytes.NewReader(c.Body())
 	// we don't know the incoming request schema
 	// and UnmarshalPayload does not read to interface{}
-	empty := struct{}{}
+	empty := requests.Article{}
 	// verifying jsonapi schema
 	err := jsonapi.UnmarshalPayload(reqReader, &empty)
 	if err != nil {
