@@ -58,7 +58,7 @@ func TestAPI(t *testing.T) {
 		time.Sleep(time.Second * 1)
 
 		validJSON := `{"username":"konishe","id":23152,"links":["2.com","1.com","bb.com"]}`
-		validJSONAPI := `{"data":{"type":"post","id":"123","attributes":{" created_at":-61758633600,"author":"Alan Donovan","body":"golang.org/x/tools/cmd/deadcode@latest","title":"Finding unreachable functions with deadcode"},"relationships":{"comments":{"data":[{"type":"comment","id":"0"},{"type":"comment","id":"1"}]}}},"included":[{"type":"comment","id":"0","attributes":{" created_at":-61758633600,"author":"a0@mail.com","body":"Wow! useful"}},{"type":"comment","id":"1","attributes":{" created_at":-61758630000,"author":"a1@mail.com","body":"Wow! useful x2"}}]}`
+		validJSONAPI := `{"data":{"type":"post","id":"123","attributes":{"created_at":-61758633600,"author":"Alan Donovan","body":"golang.org/x/tools/cmd/deadcode@latest","title":"Finding unreachable functions with deadcode"},"relationships":{"comments":{"data":[{"type":"comment","id":"0"},{"type":"comment","id":"1"}]}}},"included":[{"type":"comment","id":"0","attributes":{" created_at":-61758633600,"author":"a0@mail.com","body":"Wow! useful"}},{"type":"comment","id":"1","attributes":{" created_at":-61758630000,"author":"a1@mail.com","body":"Wow! useful x2"}}]}`
 
 		// default indent is 2 spaces - currently hardcoded
 		//
@@ -76,7 +76,7 @@ func TestAPI(t *testing.T) {
     "type": "post",
     "id": "123",
     "attributes": {
-      " created_at": -61758633600,
+      "created_at": -61758633600,
       "author": "Alan Donovan",
       "body": "golang.org/x/tools/cmd/deadcode@latest",
       "title": "Finding unreachable functions with deadcode"
@@ -196,5 +196,60 @@ func TestAPI(t *testing.T) {
 
 		// invalid jsonapi scheme
 		reqFn(jsonAPIEndpoint, fiber.StatusBadRequest, invalidJSONAPISchema)
+	})
+
+	t.Run("rate-limit-test", func(t *testing.T) {
+		go startServer(t)
+		time.Sleep(time.Second * 1)
+		cli := client()
+
+		doRequests := func(endp string, reqN int, allowedError int, expectedCode int) error {
+
+			reqFn := func(endp string, respChan chan int) {
+				resp, err := cli.Get(endp)
+				if err != nil {
+					panic(err)
+				}
+				respChan <- resp.StatusCode
+			}
+
+			codeChan := make(chan int)
+			for i := 0; i < reqN; i++ {
+				go reqFn(endp, codeChan)
+			}
+
+			expectedN := 0
+
+			for i := 0; i < reqN; i++ {
+				code := <-codeChan
+				if code == expectedCode {
+					expectedN++
+				}
+			}
+			unexpectedN := reqN - expectedN
+			if unexpectedN > allowedError {
+				return fmt.Errorf("unacceptable amount of errors(%d allowed, %d received)", allowedError, unexpectedN)
+			}
+
+			return nil
+		}
+
+		// >10 requests
+		// 10 margin errors are allowed because 10 requests will be successful
+		err := doRequests(helloEndpoint, 100, 10, fiber.StatusTooManyRequests)
+		if err != nil {
+			t.Fatal("unexpected server response with >10 requests: ", err.Error())
+		}
+		// <10 requests
+		err = doRequests(helloEndpoint, 9, 0, fiber.StatusOK)
+		if err != nil {
+			t.Fatal("unexpected server response with <10 requests")
+		}
+		// =10 requests
+		err = doRequests(helloEndpoint, 10, 0, fiber.StatusOK)
+		if err != nil {
+			t.Fatal("unexpected server response with =10 requests")
+		}
+
 	})
 }
