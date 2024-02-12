@@ -4,5 +4,5 @@ build:
 serve:
 	./beautyf run
 
-test:
+tests:
 	go test ./test
