@@ -3,3 +3,6 @@ build:
 
 serve:
 	./beautyf run
+
+test:
+	go test ./test
