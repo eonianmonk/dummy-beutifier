@@ -6,13 +6,21 @@ import (
 	"os"
 	"time"
 
+	"github.com/alecthomas/kingpin"
 	"github.com/eonianmonk/dummy-beutifier/internal/config"
 	"github.com/eonianmonk/dummy-beutifier/internal/http"
 	"github.com/pkg/errors"
 )
 
+var (
+	app = kingpin.New("./beautyf", "api with limited rate")
+
+	runCmd    = app.Command("run", "run svc")
+	rateLimit = runCmd.Flag("rateLimit", "rate limit for each endpoint").Default("10").Float64()
+)
+
 func main() {
-	Run(os.Args)
+	Run(os.Args[1:])
 }
 
 func Run(args []string) {
